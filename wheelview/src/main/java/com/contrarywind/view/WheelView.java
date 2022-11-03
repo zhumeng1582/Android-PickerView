@@ -5,6 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -34,17 +35,26 @@ import java.util.concurrent.TimeUnit;
  */
 public class WheelView extends View {
 
+    public void setLocationType(LocationType locationType) {
+        this.locationType = locationType;
+    }
+
     public enum ACTION { // 点击，滑翔(滑到尽头)，拖拽事件
         CLICK, FLING, DAGGLE
     }
 
     public enum DividerType { // 分隔线类型
-        FILL, WRAP, CIRCLE
+        FILL, WRAP, CIRCLE, LINE_FILL,
+    }
+
+    public enum LocationType { // 位置类型
+        LEFT, CENTER, RIHGT
     }
 
     private static final String[] TIME_NUM = {"00", "01", "02", "03", "04", "05", "06", "07", "08", "09"};
 
     private DividerType dividerType;//分隔线类型
+    private LocationType locationType = LocationType.CENTER;
 
     private Context context;
     private Handler handler;
@@ -146,6 +156,7 @@ public class WheelView extends View {
             CENTER_CONTENT_OFFSET = density * 2.5F;
         }
 
+        Log.d("CENTER_CONTENT_OFFSET", ":" + CENTER_CONTENT_OFFSET);
         if (attrs != null) {
             TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.pickerview, 0, 0);
             mGravity = a.getInt(R.styleable.pickerview_wheelview_gravity, Gravity.CENTER);
@@ -416,6 +427,7 @@ public class WheelView extends View {
             endX = measuredWidth - startX;
             canvas.drawLine(startX, firstLineY, endX, firstLineY, paintIndicator);
             canvas.drawLine(startX, secondLineY, endX, secondLineY, paintIndicator);
+
         } else if (dividerType == DividerType.CIRCLE) {
             //分割线为圆圈形状
             paintIndicator.setStyle(Paint.Style.STROKE);
@@ -434,9 +446,29 @@ public class WheelView extends View {
             //半径始终以宽高中最大的来算
             float radius = Math.max((endX - startX), itemHeight) / 1.8f;
             canvas.drawCircle(measuredWidth / 2f, measuredHeight / 2f, radius, paintIndicator);
+        } else if (dividerType == DividerType.LINE_FILL) {
+            canvas.drawLine(0, firstLineY, measuredWidth, firstLineY, paintIndicator);
+            canvas.drawLine(0, secondLineY, measuredWidth, secondLineY, paintIndicator);
         } else {
-            canvas.drawLine(0.0F, firstLineY, measuredWidth, firstLineY, paintIndicator);
-            canvas.drawLine(0.0F, secondLineY, measuredWidth, secondLineY, paintIndicator);
+            if (locationType == LocationType.CENTER) {
+                canvas.drawLine(0, firstLineY, measuredWidth, firstLineY, paintIndicator);
+                canvas.drawLine(0, secondLineY, measuredWidth, secondLineY, paintIndicator);
+            } else if (locationType == LocationType.LEFT) {
+                float height = secondLineY - firstLineY;
+                canvas.drawLine(height / 2, firstLineY, measuredWidth, firstLineY, paintIndicator);
+                canvas.drawLine(height / 2, secondLineY, measuredWidth, secondLineY, paintIndicator);
+                paintIndicator.setStyle(Paint.Style.STROKE);
+                RectF oval = new RectF(0.0F, firstLineY, (secondLineY - firstLineY), secondLineY);
+                canvas.drawArc(oval, -90, -180, false, paintIndicator);
+            } else if (locationType == LocationType.RIHGT) {
+                float height = secondLineY - firstLineY;
+                canvas.drawLine(0, firstLineY, measuredWidth - height / 2, firstLineY, paintIndicator);
+                canvas.drawLine(0, secondLineY, measuredWidth - height / 2, secondLineY, paintIndicator);
+                paintIndicator.setStyle(Paint.Style.STROKE);
+                RectF oval = new RectF(measuredWidth - height, firstLineY, measuredWidth, secondLineY);
+                canvas.drawArc(oval, -90, 180, false, paintIndicator);
+            }
+
         }
 
         //只显示选中项Label文字的模式，并且Label文字不为空，则进行绘制
@@ -632,7 +664,7 @@ public class WheelView extends View {
                 }
                 break;
             case Gravity.LEFT:
-                drawCenterContentStart = 0;
+                drawCenterContentStart = 50;
                 break;
             case Gravity.RIGHT://添加偏移量
                 drawCenterContentStart = measuredWidth - rect.width() - (int) CENTER_CONTENT_OFFSET;
@@ -652,7 +684,7 @@ public class WheelView extends View {
                 }
                 break;
             case Gravity.LEFT:
-                drawOutContentStart = 0;
+                drawOutContentStart = 50;
                 break;
             case Gravity.RIGHT:
                 drawOutContentStart = measuredWidth - rect.width() - (int) CENTER_CONTENT_OFFSET;
